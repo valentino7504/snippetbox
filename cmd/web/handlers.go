@@ -1,13 +1,21 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
+
+	"github.com/valentino7504/snippetbox/internals/models"
 )
 
 func (app *Application) home(w http.ResponseWriter, r *http.Request) {
+	// snippets, err := app.snippets.Latest()
+	// if err != nil {
+	// 	app.serverError(w, r, err)
+	// 	return
+	// }
 	w.Header().Add("Server", "Go")
 	tmplFiles := []string{
 		"./ui/html/base.tmpl",
@@ -32,7 +40,16 @@ func (app *Application) getSnippet(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	_, _ = fmt.Fprintf(w, "Display snippet with id %d\n", id)
+	snippet, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			http.NotFound(w, r)
+		} else {
+			app.serverError(w, r, err)
+		}
+		return
+	}
+	_, _ = fmt.Fprintf(w, "Display snippet with id %d: %+v\n", id, snippet)
 }
 
 func (app *Application) getSnippetForm(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +57,17 @@ func (app *Application) getSnippetForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) createSnippet(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusCreated)
-	_, _ = fmt.Fprintf(w, "Create/save a new snippet")
+	title := "Nigeria Anthem thing"
+	content := "Nigeria We Hail Thee"
+	expires := 7
+
+	id, err := app.snippets.Insert(title, content, expires)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	// w.WriteHeader(http.StatusCreated)
+	// _, _ = fmt.Fprintf(w, "Create/save a new snippet")
+	// Redirect the user to the view of the snippet
+	http.Redirect(w, r, fmt.Sprintf("/snippets/%d", id), http.StatusSeeOther)
 }
