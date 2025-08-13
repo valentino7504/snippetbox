@@ -3,35 +3,28 @@ package main
 import (
 	"errors"
 	"fmt"
-	"html/template"
+	_ "html/template"
 	"net/http"
 	"strconv"
 
-	"github.com/valentino7504/snippetbox/internals/models"
+	"github.com/valentino7504/snippetbox/internal/models"
 )
 
+type templateData struct {
+	CurrentYear int
+	Snippet     models.Snippet
+	Snippets    []models.Snippet
+}
+
 func (app *Application) home(w http.ResponseWriter, r *http.Request) {
-	// snippets, err := app.snippets.Latest()
-	// if err != nil {
-	// 	app.serverError(w, r, err)
-	// 	return
-	// }
-	w.Header().Add("Server", "Go")
-	tmplFiles := []string{
-		"./ui/html/base.tmpl",
-		"./ui/html/partials/nav.tmpl",
-		"./ui/html/pages/home.tmpl",
-	}
-	templateSet, err := template.ParseFiles(tmplFiles...)
+	snippets, err := app.snippets.Latest()
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
-
-	err = templateSet.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		app.serverError(w, r, err)
-	}
+	data := app.newTemplateData(r)
+	data.Snippets = snippets
+	app.render(w, r, http.StatusOK, "home.tmpl", data)
 }
 
 func (app *Application) getSnippet(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +42,9 @@ func (app *Application) getSnippet(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, "Display snippet with id %d: %+v\n", id, snippet)
+	data := app.newTemplateData(r)
+	data.Snippet = snippet
+	app.render(w, r, http.StatusOK, "view.tmpl", data)
 }
 
 func (app *Application) getSnippetForm(w http.ResponseWriter, r *http.Request) {
