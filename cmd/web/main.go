@@ -4,17 +4,19 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/valentino7504/snippetbox/internals/models"
+	"github.com/valentino7504/snippetbox/internal/models"
 )
 
 type Application struct {
-	logger   *slog.Logger
-	snippets *models.SnippetModel
+	logger        *slog.Logger
+	snippets      *models.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -22,7 +24,7 @@ func main() {
 	debug := flag.Bool("debug", false, "Debug mode on/off")
 	dbUrl := flag.String("db", os.Getenv("SNIPPETBOX_DB_URL"), "MySQL data source name")
 
-	logger := NewLogger(debug)
+	logger := newLogger(debug)
 
 	flag.Parse()
 
@@ -32,9 +34,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	templateCache, err := newTemplateCache()
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 	app := &Application{
-		logger:   logger,
-		snippets: &models.SnippetModel{DB: db},
+		logger:        logger,
+		snippets:      &models.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	defer func(db *sql.DB) {
